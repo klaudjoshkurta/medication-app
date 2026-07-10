@@ -10,7 +10,7 @@ interface MedicationRepository {
 
     suspend fun getMedication(id: Long): Medication?
 
-    suspend fun addMedication(name: String, intervalHours: Int?): Long
+    suspend fun addMedication(name: String, intervalHours: Int?, takenAtMillis: Long): Long
 
     suspend fun updateMedication(id: Long, name: String, intervalHours: Int?)
 

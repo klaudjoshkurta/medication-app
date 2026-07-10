@@ -15,6 +15,7 @@ data class AddMedicationUiState(
     val name: String = "",
     val recurring: Boolean = false,
     val hoursText: String = "",
+    val takenAtMillis: Long = System.currentTimeMillis(),
     val saving: Boolean = false
 ) {
     val hoursValue: Int? get() = hoursText.toIntOrNull()
@@ -35,13 +36,16 @@ class AddMedicationViewModel @Inject constructor(
     fun onHoursChange(value: String) =
         _state.update { it.copy(hoursText = value.filter { c -> c.isDigit() }) }
 
+    fun onTakenAtChange(millis: Long) = _state.update { it.copy(takenAtMillis = millis) }
+    fun resetTakenAtToNow() = _state.update { it.copy(takenAtMillis = System.currentTimeMillis()) }
+
     fun save(onSaved: () -> Unit) {
         val s = _state.value
         if (!s.canSave) return
         _state.update { it.copy(saving = true) }
         viewModelScope.launch {
             val interval = if (s.recurring) s.hoursValue else null
-            addMedicationUseCase(s.name, interval)
+            addMedicationUseCase(s.name, interval, s.takenAtMillis)
             _state.update { AddMedicationUiState() }
             onSaved()
         }

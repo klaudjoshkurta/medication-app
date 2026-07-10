@@ -48,17 +48,23 @@ class MedicationRepositoryImpl @Inject constructor(
         return Medication(id = entity.id, name = entity.name, intervalHours = entity.intervalHours)
     }
 
-    override suspend fun addMedication(name: String, intervalHours: Int?): Long {
-        val now = System.currentTimeMillis()
+    override suspend fun addMedication(name: String, intervalHours: Int?, takenAtMillis: Long): Long {
         val medId = medicationDao.insert(
-            MedicationEntity(name = name, intervalHours = intervalHours, createdAt = now)
+            MedicationEntity(
+                name = name,
+                intervalHours = intervalHours,
+                createdAt = System.currentTimeMillis()
+            )
         )
-        val nextAt = intervalHours?.let { now + TimeUnit.HOURS.toMillis(it.toLong()) }
+        val nextAt = intervalHours?.let { takenAtMillis + TimeUnit.HOURS.toMillis(it.toLong()) }
         doseLogDao.insert(
-            DoseLogEntity(medicationId = medId, takenAt = now, nextDoseAt = nextAt)
+            DoseLogEntity(medicationId = medId, takenAt = takenAtMillis, nextDoseAt = nextAt)
         )
         if (nextAt != null) {
-            alarmScheduler.schedule(medId, nextAt - REMINDER_LEAD_MS)
+            val alarmAt = nextAt - REMINDER_LEAD_MS
+            if (alarmAt > System.currentTimeMillis()) {
+                alarmScheduler.schedule(medId, alarmAt)
+            }
         }
         return medId
     }
