@@ -5,6 +5,7 @@ import com.shkurta.medication.data.local.MedicationDao
 import com.shkurta.medication.data.local.entity.DoseLogEntity
 import com.shkurta.medication.data.local.entity.MedicationEntity
 import com.shkurta.medication.domain.model.DoseLog
+import com.shkurta.medication.domain.model.Medication
 import com.shkurta.medication.domain.model.TimelineState
 import com.shkurta.medication.domain.model.UpcomingDose
 import com.shkurta.medication.domain.repository.MedicationRepository
@@ -42,6 +43,11 @@ class MedicationRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getMedication(id: Long): Medication? {
+        val entity = medicationDao.getById(id) ?: return null
+        return Medication(id = entity.id, name = entity.name, intervalHours = entity.intervalHours)
+    }
+
     override suspend fun addMedication(name: String, intervalHours: Int?): Long {
         val now = System.currentTimeMillis()
         val medId = medicationDao.insert(
@@ -55,6 +61,37 @@ class MedicationRepositoryImpl @Inject constructor(
             alarmScheduler.schedule(medId, nextAt - REMINDER_LEAD_MS)
         }
         return medId
+    }
+
+    override suspend fun updateMedication(id: Long, name: String, intervalHours: Int?) {
+        val existing = medicationDao.getById(id) ?: return
+        medicationDao.update(existing.copy(name = name, intervalHours = intervalHours))
+
+        val latest = doseLogDao.getLatestForMedication(id) ?: return
+        val newNextAt = intervalHours?.let { latest.takenAt + TimeUnit.HOURS.toMillis(it.toLong()) }
+        doseLogDao.update(latest.copy(nextDoseAt = newNextAt))
+
+        alarmScheduler.cancel(id)
+        if (newNextAt != null && newNextAt > System.currentTimeMillis()) {
+            alarmScheduler.schedule(id, newNextAt - REMINDER_LEAD_MS)
+        }
+    }
+
+    override suspend fun deleteMedication(id: Long) {
+        alarmScheduler.cancel(id)
+        medicationDao.deleteById(id)
+    }
+
+    override suspend fun deleteDoseLog(id: Long) {
+        val log = doseLogDao.getById(id) ?: return
+        doseLogDao.deleteById(id)
+
+        val newLatest = doseLogDao.getLatestForMedication(log.medicationId)
+        alarmScheduler.cancel(log.medicationId)
+        val nextAt = newLatest?.nextDoseAt
+        if (nextAt != null && nextAt > System.currentTimeMillis()) {
+            alarmScheduler.schedule(log.medicationId, nextAt - REMINDER_LEAD_MS)
+        }
     }
 
     override suspend fun markTaken(medicationId: Long) {

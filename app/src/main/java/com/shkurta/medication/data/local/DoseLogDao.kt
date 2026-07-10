@@ -3,6 +3,7 @@ package com.shkurta.medication.data.local
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.shkurta.medication.data.local.entity.DoseLogEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -10,6 +11,18 @@ import kotlinx.coroutines.flow.Flow
 interface DoseLogDao {
     @Insert
     suspend fun insert(log: DoseLogEntity): Long
+
+    @Update
+    suspend fun update(log: DoseLogEntity)
+
+    @Query("DELETE FROM dose_logs WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM dose_logs WHERE id = :id")
+    suspend fun getById(id: Long): DoseLogEntity?
+
+    @Query("SELECT * FROM dose_logs WHERE medicationId = :medicationId ORDER BY takenAt DESC LIMIT 1")
+    suspend fun getLatestForMedication(medicationId: Long): DoseLogEntity?
 
     @Query(
         """
