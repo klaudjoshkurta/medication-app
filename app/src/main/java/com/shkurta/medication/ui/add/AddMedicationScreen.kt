@@ -1,5 +1,6 @@
 package com.shkurta.medication.ui.add
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,9 +38,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -53,10 +57,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.SimpleDateFormat
@@ -118,84 +122,48 @@ fun AddMedicationScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             FormSection(label = "Details") {
-                OutlinedTextField(
+                MonoTextField(
                     value = state.name,
                     onValueChange = viewModel::onNameChange,
-                    label = { Text("Name") },
-                    placeholder = { Text("e.g. Ibuprofen") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Name",
+                    placeholder = "e.g. Ibuprofen"
                 )
-                OutlinedTextField(
+                MonoTextField(
                     value = state.cause,
                     onValueChange = viewModel::onCauseChange,
-                    label = { Text("Cause") },
-                    placeholder = { Text("e.g. Headache") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Cause",
+                    placeholder = "e.g. Headache"
                 )
-                OutlinedTextField(
+                MonoTextField(
                     value = state.description,
                     onValueChange = viewModel::onDescriptionChange,
-                    label = { Text("Description") },
-                    placeholder = { Text("e.g. Pill") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Description",
+                    placeholder = "e.g. Pill"
                 )
             }
 
             FormSection(label = "Dosage") {
-                OutlinedTextField(
+                MonoTextField(
                     value = state.dosageMgText,
                     onValueChange = viewModel::onDosageMgChange,
-                    label = { Text("Dosage") },
-                    suffix = { Text("mg") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Dosage",
+                    suffix = "mg",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
             }
 
             FormSection(label = "Schedule") {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.onRecurringChange(!state.recurring) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Recurring dose",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = "Remind me every N hours",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = state.recurring,
-                            onCheckedChange = viewModel::onRecurringChange
-                        )
-                    }
-                }
+                RecurringToggleCard(
+                    recurring = state.recurring,
+                    hoursValue = state.hoursValue,
+                    onToggle = viewModel::onRecurringChange
+                )
                 if (state.recurring) {
-                    OutlinedTextField(
-                        value = state.hoursText,
-                        onValueChange = viewModel::onHoursChange,
-                        label = { Text("Interval") },
-                        suffix = { Text("hours") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    IntervalHoursField(
+                        hoursText = state.hoursText,
+                        hoursValue = state.hoursValue,
+                        onChange = viewModel::onHoursChange,
+                        isError = state.hoursText.isNotBlank() && state.hoursValue == null
                     )
                 }
             }
@@ -283,6 +251,207 @@ private fun SaveBar(
     }
 }
 
+@Composable
+private fun MonoTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    suffix: String? = null,
+    singleLine: Boolean = true,
+    isError: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = {
+            Text(
+                text = label,
+                fontWeight = FontWeight.Medium
+            )
+        },
+        placeholder = placeholder?.let { { Text(it) } },
+        suffix = suffix?.let { { Text(it) } },
+        singleLine = singleLine,
+        isError = isError,
+        keyboardOptions = keyboardOptions,
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            cursorColor = MaterialTheme.colorScheme.onBackground,
+            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedSuffixColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedSuffixColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun MonoSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        thumbContent = if (checked) {
+            {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                )
+            }
+        } else null,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = MaterialTheme.colorScheme.background,
+            checkedTrackColor = MaterialTheme.colorScheme.onBackground,
+            checkedBorderColor = MaterialTheme.colorScheme.onBackground,
+            checkedIconColor = MaterialTheme.colorScheme.onBackground,
+            uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            uncheckedTrackColor = Color.Transparent,
+            uncheckedBorderColor = MaterialTheme.colorScheme.outline
+        )
+    )
+}
+
+@Composable
+private fun IntervalHoursField(
+    hoursText: String,
+    hoursValue: Int?,
+    onChange: (String) -> Unit,
+    isError: Boolean = false
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(4, 6, 8, 12, 24).forEach { p ->
+                IntervalChip(
+                    hours = p,
+                    selected = hoursValue == p,
+                    onClick = { onChange(p.toString()) }
+                )
+            }
+        }
+        MonoTextField(
+            value = hoursText,
+            onValueChange = onChange,
+            label = "Interval",
+            suffix = "hours",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            isError = isError
+        )
+    }
+}
+
+@Composable
+private fun IntervalChip(
+    hours: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val bg = if (selected) MaterialTheme.colorScheme.onBackground else Color.Transparent
+    val fg = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
+    val subFg = if (selected) {
+        MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = bg,
+        border = border,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = "${hours}h",
+                style = MaterialTheme.typography.titleMedium,
+                color = fg,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = frequencyLabel(hours),
+                style = MaterialTheme.typography.labelSmall,
+                color = subFg
+            )
+        }
+    }
+}
+
+private fun frequencyLabel(hours: Int): String = when {
+    hours <= 0 -> ""
+    24 % hours == 0 -> {
+        val perDay = 24 / hours
+        if (perDay == 1) "daily" else "$perDay/day"
+    }
+    else -> "every ${hours}h"
+}
+
+@Composable
+private fun RecurringToggleCard(
+    recurring: Boolean,
+    hoursValue: Int?,
+    onToggle: (Boolean) -> Unit
+) {
+    val border = if (recurring) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground)
+    } else null
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = border,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle(!recurring) }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Recurring dose",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = recurringSubtitle(recurring, hoursValue),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            MonoSwitch(
+                checked = recurring,
+                onCheckedChange = onToggle
+            )
+        }
+    }
+}
+
+private fun recurringSubtitle(recurring: Boolean, hoursValue: Int?): String = when {
+    !recurring -> "One-time dose"
+    hoursValue == null || hoursValue <= 0 -> "Choose interval below"
+    hoursValue == 1 -> "Every hour"
+    else -> "Every $hoursValue hours"
+}
+
 private fun validationHint(state: AddMedicationUiState): String? = when {
     state.saving -> null
     state.name.isBlank() -> "Add a name to save"
@@ -295,13 +464,20 @@ private fun FormSection(
     label: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 1.5.sp
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.width(10.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.weight(1f)
+            )
+        }
         content()
     }
 }

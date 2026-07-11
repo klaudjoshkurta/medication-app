@@ -1,5 +1,6 @@
 package com.shkurta.medication.ui.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,10 +47,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -64,13 +68,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shkurta.medication.R
 import com.shkurta.medication.domain.model.DoseLog
 import com.shkurta.medication.domain.model.Medication
 import com.shkurta.medication.domain.model.UpcomingDose
@@ -80,6 +90,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.Locale.getDefault
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +106,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         while (true) {
             nowMillis = System.currentTimeMillis()
-            delay(1_000L)
+            delay(1_000L.milliseconds)
         }
     }
 
@@ -198,7 +210,6 @@ fun HomeScreen(
             }
 
             if (state.history.isNotEmpty()) {
-                item { SectionHeader("History") }
                 groupHistory(state.history).forEach { group ->
                     item(key = "grp-${group.label}") {
                         DayGroupHeader(label = group.label, count = group.logs.size)
@@ -481,13 +492,29 @@ private fun MedicationOverflowMenu(onEdit: () -> Unit, onDelete: () -> Unit) {
 
 @Composable
 private fun SectionHeader(text: String) {
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 1.5.sp,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(top = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 4.dp, height = 18.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.onBackground,
+                    shape = RoundedCornerShape(2.dp)
+                )
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
 }
 
 @Composable
@@ -591,29 +618,17 @@ private fun UpcomingRow(
 }
 
 @Composable
-private fun DayGroupHeader(label: String, count: Int) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 16.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.5.sp
-        )
-        Text(
-            text = if (count == 1) "1 dose" else "$count doses",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 1.sp
-        )
-    }
+private fun DayGroupHeader(
+    label: String,
+    count: Int
+) {
+    Text(
+        modifier = Modifier.padding(horizontal = 20.dp),
+        text = "${label.uppercase(getDefault())} (${count})",
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onBackground,
+        fontWeight = FontWeight.SemiBold
+    )
 }
 
 @Composable
@@ -622,42 +637,38 @@ private fun HistoryRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val subtitle = buildString {
+        log.medicationDescription?.let { append(it) }
+        log.medicationCause?.let {
+            if (isNotEmpty()) append(" · ")
+            append(it)
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = formatClock(log.takenAt),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.width(60.dp)
+        Icon(
+            painter = painterResource(id = R.drawable.ic_pill),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.size(24.dp)
         )
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.onBackground,
-                    shape = CircleShape
-                )
-        )
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
             Text(
-                text = log.medicationName,
+                text = "${log.medicationName} (${formatClock(log.takenAt)})",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            val subtitle = buildString {
-                log.medicationCause?.let { append(it) }
-                log.medicationDescription?.let {
-                    if (isNotEmpty()) append(" · ")
-                    append(it)
-                }
-            }
             if (subtitle.isNotEmpty()) {
                 Text(
                     text = subtitle,
@@ -666,7 +677,33 @@ private fun HistoryRow(
                 )
             }
         }
-        RowOverflowMenu(onEdit = onEdit, onDelete = onDelete)
+        RowOverflowMenu(
+            onEdit = onEdit,
+            onDelete = onDelete
+        )
+    }
+}
+
+@Composable
+private fun PillIcon() {
+    Row(
+        modifier = Modifier
+            .size(width = 28.dp, height = 12.dp)
+            .rotate(-35f)
+            .clip(RoundedCornerShape(999.dp))
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.onBackground)
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
     }
 }
 
@@ -694,20 +731,28 @@ private fun groupHistory(logs: List<DoseLog>): List<HistoryGroup> {
 }
 
 @Composable
-private fun RowOverflowMenu(onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun RowOverflowMenu(
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(
                 Icons.Filled.MoreVert,
                 contentDescription = "More",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.size(20.dp)
             )
         }
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = MaterialTheme.colorScheme.background,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1F)),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+            shape = RoundedCornerShape(16.dp)
         ) {
             DropdownMenuItem(
                 text = { Text("Edit", color = MaterialTheme.colorScheme.onBackground) },
@@ -754,85 +799,48 @@ private fun EditMedicationDialog(
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 FormSection(label = "Details") {
-                    OutlinedTextField(
+                    MonoTextField(
                         value = state.name,
                         onValueChange = onNameChange,
-                        label = { Text("Name") },
-                        singleLine = true,
-                        isError = state.name.isBlank(),
-                        modifier = Modifier.fillMaxWidth()
+                        label = "Name",
+                        isError = state.name.isBlank()
                     )
-                    OutlinedTextField(
+                    MonoTextField(
                         value = state.cause,
                         onValueChange = onCauseChange,
-                        label = { Text("Cause") },
-                        placeholder = { Text("e.g. Headache") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        label = "Cause",
+                        placeholder = "e.g. Headache"
                     )
-                    OutlinedTextField(
+                    MonoTextField(
                         value = state.description,
                         onValueChange = onDescriptionChange,
-                        label = { Text("Description") },
-                        placeholder = { Text("e.g. Pill") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        label = "Description",
+                        placeholder = "e.g. Pill"
                     )
                 }
 
                 FormSection(label = "Dosage") {
-                    OutlinedTextField(
+                    MonoTextField(
                         value = state.dosageMgText,
                         onValueChange = onDosageMgChange,
-                        label = { Text("Dosage") },
-                        suffix = { Text("mg") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        label = "Dosage",
+                        suffix = "mg",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
 
                 FormSection(label = "Schedule") {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onRecurringChange(!state.recurring) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Recurring dose",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "Remind me every N hours",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = state.recurring,
-                                onCheckedChange = onRecurringChange
-                            )
-                        }
-                    }
+                    RecurringToggleCard(
+                        recurring = state.recurring,
+                        hoursValue = state.hoursValue,
+                        onToggle = onRecurringChange
+                    )
                     if (state.recurring) {
-                        OutlinedTextField(
-                            value = state.hoursText,
-                            onValueChange = onHoursChange,
-                            label = { Text("Interval") },
-                            suffix = { Text("hours") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            isError = state.hoursText.isNotBlank() && state.hoursValue == null,
-                            modifier = Modifier.fillMaxWidth()
+                        IntervalHoursField(
+                            hoursText = state.hoursText,
+                            hoursValue = state.hoursValue,
+                            onChange = onHoursChange,
+                            isError = state.hoursText.isNotBlank() && state.hoursValue == null
                         )
                     }
                 }
@@ -866,15 +874,223 @@ private fun FormSection(
     label: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 1.5.sp
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.width(10.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.weight(1f)
+            )
+        }
         content()
     }
+}
+
+@Composable
+private fun IntervalHoursField(
+    hoursText: String,
+    hoursValue: Int?,
+    onChange: (String) -> Unit,
+    isError: Boolean = false
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(4, 6, 8, 12, 24).forEach { p ->
+                IntervalChip(
+                    hours = p,
+                    selected = hoursValue == p,
+                    onClick = { onChange(p.toString()) }
+                )
+            }
+        }
+        MonoTextField(
+            value = hoursText,
+            onValueChange = onChange,
+            label = "Interval",
+            suffix = "hours",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            isError = isError
+        )
+    }
+}
+
+@Composable
+private fun IntervalChip(
+    hours: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val bg = if (selected) MaterialTheme.colorScheme.onBackground else Color.Transparent
+    val fg = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
+    val subFg = if (selected) {
+        MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = bg,
+        border = border,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = "${hours}h",
+                style = MaterialTheme.typography.titleMedium,
+                color = fg,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = frequencyLabel(hours),
+                style = MaterialTheme.typography.labelSmall,
+                color = subFg
+            )
+        }
+    }
+}
+
+private fun frequencyLabel(hours: Int): String = when {
+    hours <= 0 -> ""
+    24 % hours == 0 -> {
+        val perDay = 24 / hours
+        if (perDay == 1) "daily" else "$perDay/day"
+    }
+    else -> "every ${hours}h"
+}
+
+@Composable
+private fun RecurringToggleCard(
+    recurring: Boolean,
+    hoursValue: Int?,
+    onToggle: (Boolean) -> Unit
+) {
+    val border = if (recurring) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground)
+    } else null
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = border,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle(!recurring) }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Recurring dose",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = recurringSubtitle(recurring, hoursValue),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            MonoSwitch(
+                checked = recurring,
+                onCheckedChange = onToggle
+            )
+        }
+    }
+}
+
+@Composable
+private fun MonoTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    suffix: String? = null,
+    singleLine: Boolean = true,
+    isError: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = {
+            Text(
+                text = label,
+                fontWeight = FontWeight.Medium
+            )
+        },
+        placeholder = placeholder?.let { { Text(it) } },
+        suffix = suffix?.let { { Text(it) } },
+        singleLine = singleLine,
+        isError = isError,
+        keyboardOptions = keyboardOptions,
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            cursorColor = MaterialTheme.colorScheme.onBackground,
+            focusedTextColor = MaterialTheme.colorScheme.onBackground,
+            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedSuffixColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedSuffixColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun MonoSwitch(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        thumbContent = if (checked) {
+            {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                )
+            }
+        } else null,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = MaterialTheme.colorScheme.background,
+            checkedTrackColor = MaterialTheme.colorScheme.onBackground,
+            checkedBorderColor = MaterialTheme.colorScheme.onBackground,
+            checkedIconColor = MaterialTheme.colorScheme.onBackground,
+            uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            uncheckedTrackColor = Color.Transparent,
+            uncheckedBorderColor = MaterialTheme.colorScheme.outline
+        )
+    )
+}
+
+private fun recurringSubtitle(recurring: Boolean, hoursValue: Int?): String = when {
+    !recurring -> "One-time dose"
+    hoursValue == null || hoursValue <= 0 -> "Choose interval below"
+    hoursValue == 1 -> "Every hour"
+    else -> "Every $hoursValue hours"
 }
 
 @Composable
