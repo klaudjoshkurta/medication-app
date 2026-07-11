@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -26,21 +27,26 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,8 +59,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shkurta.medication.domain.model.DoseLog
+import com.shkurta.medication.domain.model.Medication
 import com.shkurta.medication.domain.model.UpcomingDose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -76,6 +84,10 @@ fun HomeScreen(
         }
     }
 
+    var showQuickAdd by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+
     var confirmDeleteMed by remember { mutableStateOf<Pair<Long, String>?>(null) }
     var confirmDeleteLog by remember { mutableStateOf<Long?>(null) }
 
@@ -83,6 +95,15 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Medications") },
+                actions = {
+                    IconButton(onClick = { showQuickAdd = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.List,
+                            contentDescription = "Quick Add",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
@@ -100,7 +121,7 @@ fun HomeScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        if (state.upcoming.isEmpty() && state.history.isEmpty()) {
+        if (state.upcoming.isEmpty() && state.history.isEmpty() && state.medications.isEmpty()) {
             EmptyState(Modifier.padding(padding))
             return@Scaffold
         }
@@ -132,6 +153,25 @@ fun HomeScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
+        }
+    }
+
+    if (showQuickAdd) {
+        ModalBottomSheet(
+            onDismissRequest = { showQuickAdd = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground
+        ) {
+            QuickAddSheetContent(
+                medications = state.medications,
+                onTake = { medId ->
+                    viewModel.markTaken(medId)
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        if (!sheetState.isVisible) showQuickAdd = false
+                    }
+                }
+            )
         }
     }
 
@@ -187,6 +227,58 @@ fun HomeScreen(
             titleContentColor = MaterialTheme.colorScheme.onBackground,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun QuickAddSheetContent(
+    medications: List<Medication>,
+    onTake: (Long) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            text = "Quick Add Dose",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        if (medications.isEmpty()) {
+            Text(
+                text = "No medications added yet.",
+                modifier = Modifier.padding(20.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            LazyColumn {
+                items(medications) { med ->
+                    ListItem(
+                        headlineContent = { Text(med.name) },
+                        supportingContent = {
+                            val info = buildString {
+                                med.dosageMg?.let { append("${it}mg") }
+                                med.intervalHours?.let {
+                                    if (isNotEmpty()) append(" · ")
+                                    append("Every ${it}h")
+                                }
+                            }
+                            if (info.isNotEmpty()) Text(info)
+                        },
+                        trailingContent = {
+                            OutlinedButton(onClick = { onTake(med.id) }) {
+                                Text("Take")
+                            }
+                        },
+                        colors = ListItemDefaults.colors(
+                            containerColor = Color.Transparent
+                        )
+                    )
+                }
+            }
+        }
     }
 }
 

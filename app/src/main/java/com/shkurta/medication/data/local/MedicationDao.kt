@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import com.shkurta.medication.data.local.entity.MedicationEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MedicationDao {
@@ -22,4 +23,7 @@ interface MedicationDao {
 
     @Query("SELECT * FROM medications WHERE active = 1")
     suspend fun getAllActive(): List<MedicationEntity>
+
+    @Query("SELECT * FROM medications WHERE active = 1 ORDER BY createdAt DESC")
+    fun observeAllActive(): Flow<List<MedicationEntity>>
 }

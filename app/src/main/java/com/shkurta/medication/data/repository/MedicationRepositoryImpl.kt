@@ -27,8 +27,22 @@ class MedicationRepositoryImpl @Inject constructor(
 
     override fun observeTimeline(): Flow<TimelineState> {
         val now = System.currentTimeMillis()
-        return doseLogDao.observeUpcoming(now).combine(doseLogDao.observeHistory()) { up, hist ->
+        val upcomingFlow = doseLogDao.observeUpcoming(now)
+        val historyFlow = doseLogDao.observeHistory()
+        val medsFlow = medicationDao.observeAllActive()
+
+        return combine(medsFlow, upcomingFlow, historyFlow) { meds, up, hist ->
             TimelineState(
+                medications = meds.map {
+                    Medication(
+                        id = it.id,
+                        name = it.name,
+                        cause = it.cause,
+                        description = it.description,
+                        dosageMg = it.dosageMg,
+                        intervalHours = it.intervalHours
+                    )
+                },
                 upcoming = up.map {
                     UpcomingDose(
                         medicationId = it.medicationId,
