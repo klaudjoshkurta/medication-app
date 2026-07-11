@@ -39,6 +39,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -97,6 +98,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun HomeScreen(
     onAddClick: () -> Unit,
+    onHistoryClick: (Long) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -134,7 +136,7 @@ fun HomeScreen(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "myMedications",
+                            text = "myMedication",
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.SemiBold
@@ -159,30 +161,17 @@ fun HomeScreen(
         },
         floatingActionButton = {
             if (!isEmpty) {
-                ExtendedFloatingActionButton(
+                FloatingActionButton (
                     onClick = onAddClick,
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(999.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 8.dp
-                    ),
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    text = {
-                        Text(
-                            "Add",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -220,6 +209,7 @@ fun HomeScreen(
                     items(group.logs, key = { "log-${it.id}" }) { log ->
                         HistoryRow(
                             log = log,
+                            onClick = { onHistoryClick(log.medicationId) },
                             onEdit = { viewModel.startEdit(log.medicationId) },
                             onDelete = { confirmDeleteLog = log.id }
                         )
@@ -637,6 +627,7 @@ private fun DayGroupHeader(
 @Composable
 private fun HistoryRow(
     log: DoseLog,
+    onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -651,6 +642,7 @@ private fun HistoryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
