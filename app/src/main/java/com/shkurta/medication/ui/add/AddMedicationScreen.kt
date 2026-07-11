@@ -2,20 +2,32 @@ package com.shkurta.medication.ui.add
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -23,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,8 +51,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.text.SimpleDateFormat
@@ -59,11 +74,17 @@ fun AddMedicationScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Add medication") },
+                title = {
+                    Text(
+                        text = "Add medication",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onDone) {
                         Icon(
-                            Icons.Filled.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.onBackground
                         )
@@ -75,141 +96,190 @@ fun AddMedicationScreen(
                 )
             )
         },
+        bottomBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+            ) {
+                Button(
+                    onClick = { viewModel.save(onSaved = onDone) },
+                    enabled = state.canSave,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .height(52.dp)
+                ) {
+                    if (state.saving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text("Saving…", fontWeight = FontWeight.Medium)
+                    } else {
+                        Text("Save medication", fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            OutlinedTextField(
-                value = state.name,
-                onValueChange = viewModel::onNameChange,
-                label = { Text("Medication name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = state.cause,
-                onValueChange = viewModel::onCauseChange,
-                label = { Text("Cause (e.g. Headache)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = state.description,
-                onValueChange = viewModel::onDescriptionChange,
-                label = { Text("Description (e.g. pill)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = state.dosageMgText,
-                onValueChange = viewModel::onDosageMgChange,
-                label = { Text("Dosage (mg)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Recurring dose",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        "Remind me every N hours",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = state.recurring,
-                    onCheckedChange = viewModel::onRecurringChange
+            FormSection(label = "Details") {
+                OutlinedTextField(
+                    value = state.name,
+                    onValueChange = viewModel::onNameChange,
+                    label = { Text("Name") },
+                    placeholder = { Text("e.g. Ibuprofen") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.cause,
+                    onValueChange = viewModel::onCauseChange,
+                    label = { Text("Cause") },
+                    placeholder = { Text("e.g. Headache") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.description,
+                    onValueChange = viewModel::onDescriptionChange,
+                    label = { Text("Description") },
+                    placeholder = { Text("e.g. Pill") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            if (state.recurring) {
+            FormSection(label = "Dosage") {
                 OutlinedTextField(
-                    value = state.hoursText,
-                    onValueChange = viewModel::onHoursChange,
-                    label = { Text("Every N hours") },
+                    value = state.dosageMgText,
+                    onValueChange = viewModel::onDosageMgChange,
+                    label = { Text("Dosage") },
+                    suffix = { Text("mg") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            TakenAtField(
-                millis = state.takenAtMillis,
-                onChange = viewModel::onTakenAtChange,
-                onSetNow = viewModel::resetTakenAtToNow
-            )
+            FormSection(label = "Schedule") {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.onRecurringChange(!state.recurring) }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Recurring dose",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "Remind me every N hours",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = state.recurring,
+                            onCheckedChange = viewModel::onRecurringChange
+                        )
+                    }
+                }
+                if (state.recurring) {
+                    OutlinedTextField(
+                        value = state.hoursText,
+                        onValueChange = viewModel::onHoursChange,
+                        label = { Text("Interval") },
+                        suffix = { Text("hours") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
 
-            Spacer(Modifier.height(8.dp))
-            Button(
-                onClick = { viewModel.save(onSaved = onDone) },
-                enabled = state.canSave,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Save")
+            FormSection(label = "First dose") {
+                TakenAtControls(
+                    millis = state.takenAtMillis,
+                    onChange = viewModel::onTakenAtChange
+                )
             }
         }
     }
 }
 
+@Composable
+private fun FormSection(
+    label: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 1.5.sp
+        )
+        content()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TakenAtField(
+private fun TakenAtControls(
     millis: Long,
-    onChange: (Long) -> Unit,
-    onSetNow: () -> Unit
+    onChange: (Long) -> Unit
 ) {
     var showDate by remember { mutableStateOf(false) }
     var showTime by remember { mutableStateOf(false) }
-    var pendingDateMillis by remember { mutableStateOf<Long?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { showDate = true }
-            .padding(vertical = 4.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(
-            "Taken at",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        FieldCard(
+            label = "Date",
+            value = formatDate(millis),
+            onClick = { showDate = true },
+            modifier = Modifier.weight(1f)
         )
-        Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = formatDateTime(millis),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            TextButton(onClick = onSetNow) {
-                Text("Now", color = MaterialTheme.colorScheme.onBackground)
-            }
-        }
+        FieldCard(
+            label = "Time",
+            value = formatTime(millis),
+            onClick = { showTime = true },
+            modifier = Modifier.weight(1f)
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PresetChip("Now") { onChange(System.currentTimeMillis()) }
+        PresetChip("5m ago") { onChange(System.currentTimeMillis() - 5 * 60_000L) }
+        PresetChip("1h ago") { onChange(System.currentTimeMillis() - 60 * 60_000L) }
     }
 
     if (showDate) {
@@ -218,15 +288,17 @@ private fun TakenAtField(
             onDismissRequest = { showDate = false },
             confirmButton = {
                 TextButton(onClick = {
-                    pendingDateMillis = dateState.selectedDateMillis
+                    val newDateUtc = dateState.selectedDateMillis
+                    if (newDateUtc != null) {
+                        onChange(combineDateAndTime(dateUtcMillis = newDateUtc, timeMillis = millis))
+                    }
                     showDate = false
-                    showTime = true
-                }) { Text("Next") }
+                }) { Text("Set date") }
             },
             dismissButton = {
                 TextButton(onClick = { showDate = false }) { Text("Cancel") }
             },
-            colors = androidx.compose.material3.DatePickerDefaults.colors(
+            colors = DatePickerDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.background
             )
         ) {
@@ -243,19 +315,15 @@ private fun TakenAtField(
         )
         AlertDialog(
             onDismissRequest = { showTime = false },
-            title = { Text("Time taken") },
-            text = { TimePicker(state = timeState) },
+            title = { Text("Set time") },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TimePicker(state = timeState)
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
-                    val dateUtc = pendingDateMillis ?: millis
-                    val localDate = Instant.ofEpochMilli(dateUtc)
-                        .atZone(ZoneId.of("UTC"))
-                        .toLocalDate()
-                    val localDateTime = localDate.atTime(timeState.hour, timeState.minute)
-                    val resultMillis = localDateTime.atZone(ZoneId.systemDefault())
-                        .toInstant()
-                        .toEpochMilli()
-                    onChange(resultMillis)
+                    onChange(replaceTime(millis, timeState.hour, timeState.minute))
                     showTime = false
                 }) { Text("Set") }
             },
@@ -268,5 +336,81 @@ private fun TakenAtField(
     }
 }
 
-private fun formatDateTime(millis: Long): String =
-    SimpleDateFormat("MMM d, yyyy · HH:mm", Locale.getDefault()).format(Date(millis))
+@Composable
+private fun FieldCard(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun PresetChip(text: String, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        )
+    }
+}
+
+private fun combineDateAndTime(dateUtcMillis: Long, timeMillis: Long): Long {
+    val localDate = Instant.ofEpochMilli(dateUtcMillis)
+        .atZone(ZoneId.of("UTC"))
+        .toLocalDate()
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = timeMillis }
+    val localDateTime = localDate.atTime(
+        cal.get(java.util.Calendar.HOUR_OF_DAY),
+        cal.get(java.util.Calendar.MINUTE)
+    )
+    return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+}
+
+private fun replaceTime(millis: Long, hour: Int, minute: Int): Long {
+    val cal = java.util.Calendar.getInstance().apply {
+        timeInMillis = millis
+        set(java.util.Calendar.HOUR_OF_DAY, hour)
+        set(java.util.Calendar.MINUTE, minute)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }
+    return cal.timeInMillis
+}
+
+private fun formatDate(millis: Long): String =
+    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(millis))
+
+private fun formatTime(millis: Long): String =
+    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(millis))
