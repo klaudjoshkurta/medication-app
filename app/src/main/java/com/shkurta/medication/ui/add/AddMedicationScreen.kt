@@ -103,7 +103,16 @@ fun AddMedicationScreen(
             OutlinedTextField(
                 value = state.description,
                 onValueChange = viewModel::onDescriptionChange,
-                label = { Text("Description (e.g. 500mg pill)") },
+                label = { Text("Description (e.g. pill)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = state.dosageMgText,
+                onValueChange = viewModel::onDosageMgChange,
+                label = { Text("Dosage (mg)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )

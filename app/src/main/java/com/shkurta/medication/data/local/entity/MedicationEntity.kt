@@ -9,6 +9,7 @@ data class MedicationEntity(
     val name: String,
     val cause: String?,
     val description: String?,
+    val dosageMg: Int?,
     val intervalHours: Int?,
     val createdAt: Long,
     val active: Boolean = true

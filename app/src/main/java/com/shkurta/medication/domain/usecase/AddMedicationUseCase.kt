@@ -10,12 +10,14 @@ class AddMedicationUseCase @Inject constructor(
         name: String,
         cause: String?,
         description: String?,
+        dosageMg: Int?,
         intervalHours: Int?,
         takenAtMillis: Long
     ): Long = repository.addMedication(
         name.trim(),
         cause?.trim(),
         description?.trim(),
+        dosageMg,
         intervalHours,
         takenAtMillis
     )

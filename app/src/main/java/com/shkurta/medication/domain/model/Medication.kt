@@ -5,5 +5,6 @@ data class Medication(
     val name: String,
     val cause: String?,
     val description: String?,
+    val dosageMg: Int?,
     val intervalHours: Int?
 )

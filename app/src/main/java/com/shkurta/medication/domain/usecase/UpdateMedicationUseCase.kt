@@ -11,12 +11,14 @@ class UpdateMedicationUseCase @Inject constructor(
         name: String,
         cause: String?,
         description: String?,
+        dosageMg: Int?,
         intervalHours: Int?
     ) = repository.updateMedication(
         id,
         name.trim(),
         cause?.trim(),
         description?.trim(),
+        dosageMg,
         intervalHours
     )
 }

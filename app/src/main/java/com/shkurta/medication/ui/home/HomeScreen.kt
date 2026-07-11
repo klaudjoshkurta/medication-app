@@ -141,6 +141,7 @@ fun HomeScreen(
             onNameChange = viewModel::onEditNameChange,
             onCauseChange = viewModel::onEditCauseChange,
             onDescriptionChange = viewModel::onEditDescriptionChange,
+            onDosageMgChange = viewModel::onEditDosageMgChange,
             onRecurringChange = viewModel::onEditRecurringChange,
             onHoursChange = viewModel::onEditHoursChange,
             onSave = viewModel::saveEdit,
@@ -322,6 +323,7 @@ private fun EditMedicationDialog(
     onNameChange: (String) -> Unit,
     onCauseChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
+    onDosageMgChange: (String) -> Unit,
     onRecurringChange: (Boolean) -> Unit,
     onHoursChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -350,6 +352,14 @@ private fun EditMedicationDialog(
                     value = state.description,
                     onValueChange = onDescriptionChange,
                     label = { Text("Description") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.dosageMgText,
+                    onValueChange = onDosageMgChange,
+                    label = { Text("Dosage (mg)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

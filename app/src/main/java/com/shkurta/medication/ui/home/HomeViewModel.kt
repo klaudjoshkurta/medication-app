@@ -24,10 +24,12 @@ data class EditMedicationState(
     val name: String,
     val cause: String,
     val description: String,
+    val dosageMgText: String,
     val recurring: Boolean,
     val hoursText: String
 ) {
     val hoursValue: Int? get() = hoursText.toIntOrNull()
+    val dosageMgValue: Int? get() = dosageMgText.toIntOrNull()
     val canSave: Boolean
         get() = name.isNotBlank() && (!recurring || (hoursValue != null && hoursValue!! > 0))
 }
@@ -64,6 +66,7 @@ class HomeViewModel @Inject constructor(
                 name = med.name,
                 cause = med.cause.orEmpty(),
                 description = med.description.orEmpty(),
+                dosageMgText = med.dosageMg?.toString().orEmpty(),
                 recurring = med.intervalHours != null,
                 hoursText = med.intervalHours?.toString().orEmpty()
             )
@@ -83,6 +86,9 @@ class HomeViewModel @Inject constructor(
     fun onEditDescriptionChange(value: String) =
         _editState.update { it?.copy(description = value) }
 
+    fun onEditDosageMgChange(value: String) =
+        _editState.update { it?.copy(dosageMgText = value.filter { c -> c.isDigit() }) }
+
     fun onEditRecurringChange(value: Boolean) =
         _editState.update { it?.copy(recurring = value) }
 
@@ -99,6 +105,7 @@ class HomeViewModel @Inject constructor(
                 s.name,
                 s.cause.takeIf { it.isNotBlank() },
                 s.description.takeIf { it.isNotBlank() },
+                s.dosageMgValue,
                 interval
             )
             _editState.value = null

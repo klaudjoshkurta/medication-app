@@ -9,7 +9,7 @@ import com.shkurta.medication.data.local.entity.MedicationEntity
 
 @Database(
     entities = [MedicationEntity::class, DoseLogEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class MedicationDatabase : RoomDatabase() {
@@ -21,6 +21,11 @@ abstract class MedicationDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE medications ADD COLUMN cause TEXT")
                 db.execSQL("ALTER TABLE medications ADD COLUMN description TEXT")
+            }
+        }
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE medications ADD COLUMN dosageMg INTEGER")
             }
         }
     }

@@ -60,6 +60,7 @@ class MedicationRepositoryImpl @Inject constructor(
             name = entity.name,
             cause = entity.cause,
             description = entity.description,
+            dosageMg = entity.dosageMg,
             intervalHours = entity.intervalHours
         )
     }
@@ -68,6 +69,7 @@ class MedicationRepositoryImpl @Inject constructor(
         name: String,
         cause: String?,
         description: String?,
+        dosageMg: Int?,
         intervalHours: Int?,
         takenAtMillis: Long
     ): Long {
@@ -76,6 +78,7 @@ class MedicationRepositoryImpl @Inject constructor(
                 name = name,
                 cause = cause,
                 description = description,
+                dosageMg = dosageMg,
                 intervalHours = intervalHours,
                 createdAt = System.currentTimeMillis()
             )
@@ -98,6 +101,7 @@ class MedicationRepositoryImpl @Inject constructor(
         name: String,
         cause: String?,
         description: String?,
+        dosageMg: Int?,
         intervalHours: Int?
     ) {
         val existing = medicationDao.getById(id) ?: return
@@ -106,6 +110,7 @@ class MedicationRepositoryImpl @Inject constructor(
                 name = name,
                 cause = cause,
                 description = description,
+                dosageMg = dosageMg,
                 intervalHours = intervalHours
             )
         )

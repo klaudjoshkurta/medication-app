@@ -14,6 +14,7 @@ interface MedicationRepository {
         name: String,
         cause: String?,
         description: String?,
+        dosageMg: Int?,
         intervalHours: Int?,
         takenAtMillis: Long
     ): Long
@@ -23,6 +24,7 @@ interface MedicationRepository {
         name: String,
         cause: String?,
         description: String?,
+        dosageMg: Int?,
         intervalHours: Int?
     )
 
