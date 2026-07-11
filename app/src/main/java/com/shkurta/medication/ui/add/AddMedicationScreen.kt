@@ -30,9 +30,11 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -97,35 +99,13 @@ fun AddMedicationScreen(
             )
         },
         bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.background,
-                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-            ) {
-                Button(
-                    onClick = { viewModel.save(onSaved = onDone) },
-                    enabled = state.canSave,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 12.dp)
-                        .height(52.dp)
-                ) {
-                    if (state.saving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text("Saving…", fontWeight = FontWeight.Medium)
-                    } else {
-                        Text("Save medication", fontWeight = FontWeight.Medium)
-                    }
-                }
-            }
+            SaveBar(
+                canSave = state.canSave,
+                saving = state.saving,
+                validationHint = validationHint(state),
+                onCancel = onDone,
+                onSave = { viewModel.save(onSaved = onDone) }
+            )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -228,6 +208,86 @@ fun AddMedicationScreen(
             }
         }
     }
+}
+
+@Composable
+private fun SaveBar(
+    canSave: Boolean,
+    saving: Boolean,
+    validationHint: String?,
+    onCancel: () -> Unit,
+    onSave: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (validationHint != null && !saving) {
+                Text(
+                    text = validationHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 10.dp)
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    enabled = !saving,
+                    shape = RoundedCornerShape(999.dp),
+                    modifier = Modifier.height(52.dp)
+                ) {
+                    Text(
+                        "Cancel",
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Button(
+                    onClick = onSave,
+                    enabled = canSave,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    shape = RoundedCornerShape(999.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                ) {
+                    if (saving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text("Saving…", fontWeight = FontWeight.SemiBold)
+                    } else {
+                        Text("Save medication", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun validationHint(state: AddMedicationUiState): String? = when {
+    state.saving -> null
+    state.name.isBlank() -> "Add a name to save"
+    state.recurring && (state.hoursValue == null || state.hoursValue!! <= 0) -> "Enter how often to repeat"
+    else -> null
 }
 
 @Composable

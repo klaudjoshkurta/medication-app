@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -34,8 +35,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -103,32 +105,69 @@ fun HomeScreen(
     var confirmDeleteMed by remember { mutableStateOf<Pair<Long, String>?>(null) }
     var confirmDeleteLog by remember { mutableStateOf<Long?>(null) }
 
+    val isEmpty = state.upcoming.isEmpty() && state.history.isEmpty() && state.medications.isEmpty()
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Medications") },
-                actions = {
-                    IconButton(onClick = { showMedsSheet = true }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = "Medications",
-                            tint = MaterialTheme.colorScheme.onBackground
+                title = {
+                    Column {
+                        Text(
+                            text = formatHeaderDate(nowMillis),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
                         )
+                        Text(
+                            text = "Medications",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                },
+                actions = {
+                    if (state.medications.isNotEmpty()) {
+                        MedsCountPill(
+                            count = state.medications.size,
+                            onClick = { showMedsSheet = true }
+                        )
+                        Spacer(Modifier.width(12.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
-                )
+                ),
+                modifier = Modifier.padding(top = 8.dp)
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddClick,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add medication")
+            if (!isEmpty) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddClick,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(999.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 6.dp,
+                        pressedElevation = 8.dp
+                    ),
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    text = {
+                        Text(
+                            "Add",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                )
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -160,12 +199,17 @@ fun HomeScreen(
 
             if (state.history.isNotEmpty()) {
                 item { SectionHeader("History") }
-                items(state.history, key = { "log-${it.id}" }) { log ->
-                    HistoryRow(
-                        log = log,
-                        onEdit = { viewModel.startEdit(log.medicationId) },
-                        onDelete = { confirmDeleteLog = log.id }
-                    )
+                groupHistory(state.history).forEach { group ->
+                    item(key = "grp-${group.label}") {
+                        DayGroupHeader(label = group.label, count = group.logs.size)
+                    }
+                    items(group.logs, key = { "log-${it.id}" }) { log ->
+                        HistoryRow(
+                            log = log,
+                            onEdit = { viewModel.startEdit(log.medicationId) },
+                            onDelete = { confirmDeleteLog = log.id }
+                        )
+                    }
                 }
             }
         }
@@ -211,42 +255,28 @@ fun HomeScreen(
     }
 
     confirmDeleteMed?.let { (id, name) ->
-        AlertDialog(
-            onDismissRequest = { confirmDeleteMed = null },
-            title = { Text("Delete $name?") },
-            text = { Text("This removes the medication and all its history.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteMedication(id)
-                    confirmDeleteMed = null
-                }) { Text("Delete") }
+        ConfirmDeleteDialog(
+            title = "Delete $name?",
+            message = "This will permanently remove $name and all of its dose history. This action can't be undone.",
+            confirmLabel = "Delete medication",
+            onConfirm = {
+                viewModel.deleteMedication(id)
+                confirmDeleteMed = null
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteMed = null }) { Text("Cancel") }
-            },
-            containerColor = MaterialTheme.colorScheme.background,
-            titleContentColor = MaterialTheme.colorScheme.onBackground,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            onDismiss = { confirmDeleteMed = null }
         )
     }
 
     confirmDeleteLog?.let { id ->
-        AlertDialog(
-            onDismissRequest = { confirmDeleteLog = null },
-            title = { Text("Delete entry?") },
-            text = { Text("This removes this dose from your history.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteDoseLog(id)
-                    confirmDeleteLog = null
-                }) { Text("Delete") }
+        ConfirmDeleteDialog(
+            title = "Delete this dose?",
+            message = "This dose entry will be removed from your history. This action can't be undone.",
+            confirmLabel = "Delete entry",
+            onConfirm = {
+                viewModel.deleteDoseLog(id)
+                confirmDeleteLog = null
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteLog = null }) { Text("Cancel") }
-            },
-            containerColor = MaterialTheme.colorScheme.background,
-            titleContentColor = MaterialTheme.colorScheme.onBackground,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            onDismiss = { confirmDeleteLog = null }
         )
     }
 }
@@ -384,6 +414,34 @@ private fun MedChip(text: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
+    }
+}
+
+@Composable
+private fun MedsCountPill(count: Int, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.List,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = if (count == 1) "1 med" else "$count meds",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
@@ -533,6 +591,32 @@ private fun UpcomingRow(
 }
 
 @Composable
+private fun DayGroupHeader(label: String, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(top = 16.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.5.sp
+        )
+        Text(
+            text = if (count == 1) "1 dose" else "$count doses",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
 private fun HistoryRow(
     log: DoseLog,
     onEdit: () -> Unit,
@@ -541,31 +625,23 @@ private fun HistoryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.width(64.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Text(
-                text = formatClock(log.takenAt),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = formatRelativeDate(log.takenAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Spacer(Modifier.width(12.dp))
+        Text(
+            text = formatClock(log.takenAt),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.width(60.dp)
+        )
         Box(
             modifier = Modifier
-                .width(1.dp)
-                .height(36.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant)
+                .size(8.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.onBackground,
+                    shape = CircleShape
+                )
         )
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -592,6 +668,29 @@ private fun HistoryRow(
         }
         RowOverflowMenu(onEdit = onEdit, onDelete = onDelete)
     }
+}
+
+private data class HistoryGroup(val label: String, val logs: List<DoseLog>)
+
+private fun groupHistory(logs: List<DoseLog>): List<HistoryGroup> {
+    val startOfToday = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, 0)
+        set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    val startOfYesterday = startOfToday - 24L * 60L * 60L * 1000L
+    val dateFormat = SimpleDateFormat("MMMM d", Locale.getDefault())
+
+    return logs
+        .groupBy { log ->
+            when {
+                log.takenAt >= startOfToday -> "Today"
+                log.takenAt >= startOfYesterday -> "Yesterday"
+                else -> dateFormat.format(Date(log.takenAt))
+            }
+        }
+        .map { (label, groupLogs) -> HistoryGroup(label, groupLogs) }
 }
 
 @Composable
@@ -779,6 +878,82 @@ private fun FormSection(
 }
 
 @Composable
+private fun ConfirmDeleteDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.size(56.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            }
+        },
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(confirmLabel, fontWeight = FontWeight.Medium)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Cancel",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        iconContentColor = MaterialTheme.colorScheme.onBackground,
+        titleContentColor = MaterialTheme.colorScheme.onBackground,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
 private fun EmptyState(
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -861,17 +1036,6 @@ private fun formatCompactDuration(ms: Long): String {
 private fun formatClock(millis: Long): String =
     SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(millis))
 
-private fun formatRelativeDate(millis: Long): String {
-    val startOfToday = java.util.Calendar.getInstance().apply {
-        set(java.util.Calendar.HOUR_OF_DAY, 0)
-        set(java.util.Calendar.MINUTE, 0)
-        set(java.util.Calendar.SECOND, 0)
-        set(java.util.Calendar.MILLISECOND, 0)
-    }.timeInMillis
-    val startOfYesterday = startOfToday - 24L * 60L * 60L * 1000L
-    return when {
-        millis >= startOfToday -> "Today"
-        millis >= startOfYesterday -> "Yesterday"
-        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(millis))
-    }
-}
+private fun formatHeaderDate(millis: Long): String =
+    SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(Date(millis))
+
