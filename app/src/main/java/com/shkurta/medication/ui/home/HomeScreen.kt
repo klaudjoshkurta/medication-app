@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -114,10 +117,7 @@ fun HomeScreen(
                         dose = dose,
                         nowMillis = nowMillis,
                         onTakenNow = { viewModel.markTaken(dose.medicationId) },
-                        onEdit = { viewModel.startEdit(dose.medicationId) },
-                        onDelete = { confirmDeleteMed = dose.medicationId to dose.medicationName }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
                 item { Spacer(Modifier.height(16.dp)) }
             }
@@ -205,53 +205,37 @@ private fun UpcomingRow(
     dose: UpcomingDose,
     nowMillis: Long,
     onTakenNow: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
 ) {
     val remainingMs = (dose.scheduledAt - nowMillis).coerceAtLeast(0L)
-    Row(
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = dose.medicationName,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.Medium
-            )
-            val subtitle = buildString {
-                dose.medicationCause?.let { append(it) }
-                dose.medicationDescription?.let {
-                    if (isNotEmpty()) append(" · ")
-                    append(it)
-                }
-            }
-            if (subtitle.isNotEmpty()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "in ${formatDuration(remainingMs)} · ${formatClock(dose.scheduledAt)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        TextButton(
+        Text(
+            text = "${dose.medicationName} in ${formatDuration(remainingMs)}",
+            style = MaterialTheme.typography.titleMedium,
+            color = Color(0xFF2563eb),
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = formatClock(dose.scheduledAt),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(
+            modifier = Modifier.fillMaxWidth(),
             onClick = onTakenNow,
             colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.onBackground
+                contentColor = Color.White,
+                containerColor = Color(0xFF2563eb)
             )
         ) {
             Text("Taken", fontWeight = FontWeight.Medium)
         }
-        RowOverflowMenu(onEdit = onEdit, onDelete = onDelete)
     }
 }
 
@@ -425,8 +409,12 @@ private fun formatDuration(ms: Long): String {
     val totalSeconds = ms / 1000
     val h = totalSeconds / 3600
     val m = (totalSeconds % 3600) / 60
-    val s = totalSeconds % 60
-    return "%02d:%02d:%02d".format(h, m, s)
+
+    return when {
+        h >= 1 -> "$h ${if (h == 1L) "hour" else "hours"}"
+        m >= 1 -> "$m ${if (m == 1L) "minute" else "minutes"}"
+        else -> "less than a minute"
+    }
 }
 
 private fun formatClock(millis: Long): String =
