@@ -118,6 +118,9 @@ fun HomeScreen(
     var confirmDeleteLog by remember { mutableStateOf<Long?>(null) }
 
     val isEmpty = state.upcoming.isEmpty() && state.history.isEmpty() && state.medications.isEmpty()
+    val uniqueMedications = state.medications.distinctBy {
+        it.name.trim().lowercase() to it.dosageMg
+    }
 
     Scaffold(
         topBar = {
@@ -131,17 +134,17 @@ fun HomeScreen(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Medications",
-                            style = MaterialTheme.typography.headlineSmall,
+                            text = "myMedications",
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 },
                 actions = {
-                    if (state.medications.isNotEmpty()) {
+                    if (uniqueMedications.isNotEmpty()) {
                         MedsCountPill(
-                            count = state.medications.size,
+                            count = uniqueMedications.size,
                             onClick = { showMedsSheet = true }
                         )
                         Spacer(Modifier.width(12.dp))
@@ -234,7 +237,7 @@ fun HomeScreen(
             contentColor = MaterialTheme.colorScheme.onBackground
         ) {
             MedicationsSheetContent(
-                medications = state.medications,
+                medications = uniqueMedications,
                 onTakeNow = { medId ->
                     viewModel.markTaken(medId)
                     dismissSheet(scope, sheetState) { showMedsSheet = false }
@@ -440,14 +443,14 @@ private fun MedsCountPill(count: Int, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.List,
+                painter = painterResource(R.drawable.ic_my_meds),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                text = if (count == 1) "1 med" else "$count meds",
+                text = if (count == 1) "1" else "$count",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium
