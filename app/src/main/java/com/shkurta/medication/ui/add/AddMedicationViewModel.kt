@@ -13,6 +13,8 @@ import javax.inject.Inject
 
 data class AddMedicationUiState(
     val name: String = "",
+    val cause: String = "",
+    val description: String = "",
     val recurring: Boolean = false,
     val hoursText: String = "",
     val takenAtMillis: Long = System.currentTimeMillis(),
@@ -32,6 +34,8 @@ class AddMedicationViewModel @Inject constructor(
     val state: StateFlow<AddMedicationUiState> = _state.asStateFlow()
 
     fun onNameChange(value: String) = _state.update { it.copy(name = value) }
+    fun onCauseChange(value: String) = _state.update { it.copy(cause = value) }
+    fun onDescriptionChange(value: String) = _state.update { it.copy(description = value) }
     fun onRecurringChange(value: Boolean) = _state.update { it.copy(recurring = value) }
     fun onHoursChange(value: String) =
         _state.update { it.copy(hoursText = value.filter { c -> c.isDigit() }) }
@@ -45,7 +49,13 @@ class AddMedicationViewModel @Inject constructor(
         _state.update { it.copy(saving = true) }
         viewModelScope.launch {
             val interval = if (s.recurring) s.hoursValue else null
-            addMedicationUseCase(s.name, interval, s.takenAtMillis)
+            addMedicationUseCase(
+                s.name,
+                s.cause.takeIf { it.isNotBlank() },
+                s.description.takeIf { it.isNotBlank() },
+                interval,
+                s.takenAtMillis
+            )
             _state.update { AddMedicationUiState() }
             onSaved()
         }

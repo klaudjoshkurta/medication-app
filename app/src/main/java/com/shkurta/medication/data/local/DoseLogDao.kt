@@ -29,6 +29,8 @@ interface DoseLogDao {
         SELECT dl.id AS id,
                dl.medicationId AS medicationId,
                m.name AS medicationName,
+               m.cause AS medicationCause,
+               m.description AS medicationDescription,
                dl.takenAt AS takenAt,
                dl.nextDoseAt AS nextDoseAt
         FROM dose_logs dl
@@ -42,6 +44,8 @@ interface DoseLogDao {
         """
         SELECT dl.medicationId AS medicationId,
                m.name AS medicationName,
+               m.cause AS medicationCause,
+               m.description AS medicationDescription,
                dl.nextDoseAt AS nextDoseAt
         FROM dose_logs dl
         INNER JOIN medications m ON m.id = dl.medicationId
@@ -62,6 +66,8 @@ interface DoseLogDao {
         """
         SELECT dl.medicationId AS medicationId,
                m.name AS medicationName,
+               m.cause AS medicationCause,
+               m.description AS medicationDescription,
                dl.nextDoseAt AS nextDoseAt
         FROM dose_logs dl
         INNER JOIN medications m ON m.id = dl.medicationId

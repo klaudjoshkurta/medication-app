@@ -92,6 +92,22 @@ fun AddMedicationScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            OutlinedTextField(
+                value = state.cause,
+                onValueChange = viewModel::onCauseChange,
+                label = { Text("Cause (e.g. Headache)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = state.description,
+                onValueChange = viewModel::onDescriptionChange,
+                label = { Text("Description (e.g. 500mg pill)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

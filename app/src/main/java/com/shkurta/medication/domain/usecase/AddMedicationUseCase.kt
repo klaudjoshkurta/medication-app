@@ -6,6 +6,17 @@ import javax.inject.Inject
 class AddMedicationUseCase @Inject constructor(
     private val repository: MedicationRepository
 ) {
-    suspend operator fun invoke(name: String, intervalHours: Int?, takenAtMillis: Long): Long =
-        repository.addMedication(name.trim(), intervalHours, takenAtMillis)
+    suspend operator fun invoke(
+        name: String,
+        cause: String?,
+        description: String?,
+        intervalHours: Int?,
+        takenAtMillis: Long
+    ): Long = repository.addMedication(
+        name.trim(),
+        cause?.trim(),
+        description?.trim(),
+        intervalHours,
+        takenAtMillis
+    )
 }

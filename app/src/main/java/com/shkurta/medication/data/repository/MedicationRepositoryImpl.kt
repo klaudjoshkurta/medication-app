@@ -29,12 +29,22 @@ class MedicationRepositoryImpl @Inject constructor(
         val now = System.currentTimeMillis()
         return doseLogDao.observeUpcoming(now).combine(doseLogDao.observeHistory()) { up, hist ->
             TimelineState(
-                upcoming = up.map { UpcomingDose(it.medicationId, it.medicationName, it.nextDoseAt) },
+                upcoming = up.map {
+                    UpcomingDose(
+                        medicationId = it.medicationId,
+                        medicationName = it.medicationName,
+                        medicationCause = it.medicationCause,
+                        medicationDescription = it.medicationDescription,
+                        scheduledAt = it.nextDoseAt
+                    )
+                },
                 history = hist.map {
                     DoseLog(
                         id = it.id,
                         medicationId = it.medicationId,
                         medicationName = it.medicationName,
+                        medicationCause = it.medicationCause,
+                        medicationDescription = it.medicationDescription,
                         takenAt = it.takenAt,
                         nextDoseAt = it.nextDoseAt
                     )
@@ -45,13 +55,27 @@ class MedicationRepositoryImpl @Inject constructor(
 
     override suspend fun getMedication(id: Long): Medication? {
         val entity = medicationDao.getById(id) ?: return null
-        return Medication(id = entity.id, name = entity.name, intervalHours = entity.intervalHours)
+        return Medication(
+            id = entity.id,
+            name = entity.name,
+            cause = entity.cause,
+            description = entity.description,
+            intervalHours = entity.intervalHours
+        )
     }
 
-    override suspend fun addMedication(name: String, intervalHours: Int?, takenAtMillis: Long): Long {
+    override suspend fun addMedication(
+        name: String,
+        cause: String?,
+        description: String?,
+        intervalHours: Int?,
+        takenAtMillis: Long
+    ): Long {
         val medId = medicationDao.insert(
             MedicationEntity(
                 name = name,
+                cause = cause,
+                description = description,
                 intervalHours = intervalHours,
                 createdAt = System.currentTimeMillis()
             )
@@ -69,9 +93,22 @@ class MedicationRepositoryImpl @Inject constructor(
         return medId
     }
 
-    override suspend fun updateMedication(id: Long, name: String, intervalHours: Int?) {
+    override suspend fun updateMedication(
+        id: Long,
+        name: String,
+        cause: String?,
+        description: String?,
+        intervalHours: Int?
+    ) {
         val existing = medicationDao.getById(id) ?: return
-        medicationDao.update(existing.copy(name = name, intervalHours = intervalHours))
+        medicationDao.update(
+            existing.copy(
+                name = name,
+                cause = cause,
+                description = description,
+                intervalHours = intervalHours
+            )
+        )
 
         val latest = doseLogDao.getLatestForMedication(id) ?: return
         val newNextAt = intervalHours?.let { latest.takenAt + TimeUnit.HOURS.toMillis(it.toLong()) }
@@ -121,6 +158,14 @@ class MedicationRepositoryImpl @Inject constructor(
     override suspend fun getPendingUpcoming(): List<UpcomingDose> {
         val now = System.currentTimeMillis()
         return doseLogDao.getUpcomingSnapshot(now)
-            .map { UpcomingDose(it.medicationId, it.medicationName, it.nextDoseAt) }
+            .map {
+                UpcomingDose(
+                    medicationId = it.medicationId,
+                    medicationName = it.medicationName,
+                    medicationCause = it.medicationCause,
+                    medicationDescription = it.medicationDescription,
+                    scheduledAt = it.nextDoseAt
+                )
+            }
     }
 }

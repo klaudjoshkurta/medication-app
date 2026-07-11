@@ -22,6 +22,8 @@ import javax.inject.Inject
 data class EditMedicationState(
     val id: Long,
     val name: String,
+    val cause: String,
+    val description: String,
     val recurring: Boolean,
     val hoursText: String
 ) {
@@ -60,6 +62,8 @@ class HomeViewModel @Inject constructor(
             _editState.value = EditMedicationState(
                 id = med.id,
                 name = med.name,
+                cause = med.cause.orEmpty(),
+                description = med.description.orEmpty(),
                 recurring = med.intervalHours != null,
                 hoursText = med.intervalHours?.toString().orEmpty()
             )
@@ -73,6 +77,12 @@ class HomeViewModel @Inject constructor(
     fun onEditNameChange(value: String) =
         _editState.update { it?.copy(name = value) }
 
+    fun onEditCauseChange(value: String) =
+        _editState.update { it?.copy(cause = value) }
+
+    fun onEditDescriptionChange(value: String) =
+        _editState.update { it?.copy(description = value) }
+
     fun onEditRecurringChange(value: Boolean) =
         _editState.update { it?.copy(recurring = value) }
 
@@ -84,7 +94,13 @@ class HomeViewModel @Inject constructor(
         if (!s.canSave) return
         val interval = if (s.recurring) s.hoursValue else null
         viewModelScope.launch {
-            updateMedicationUseCase(s.id, s.name, interval)
+            updateMedicationUseCase(
+                s.id,
+                s.name,
+                s.cause.takeIf { it.isNotBlank() },
+                s.description.takeIf { it.isNotBlank() },
+                interval
+            )
             _editState.value = null
         }
     }

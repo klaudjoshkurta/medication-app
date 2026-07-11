@@ -7,6 +7,8 @@ import androidx.room.PrimaryKey
 data class MedicationEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val cause: String?,
+    val description: String?,
     val intervalHours: Int?,
     val createdAt: Long,
     val active: Boolean = true

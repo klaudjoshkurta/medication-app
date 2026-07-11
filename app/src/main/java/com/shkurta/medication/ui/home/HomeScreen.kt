@@ -139,6 +139,8 @@ fun HomeScreen(
         EditMedicationDialog(
             state = es,
             onNameChange = viewModel::onEditNameChange,
+            onCauseChange = viewModel::onEditCauseChange,
+            onDescriptionChange = viewModel::onEditDescriptionChange,
             onRecurringChange = viewModel::onEditRecurringChange,
             onHoursChange = viewModel::onEditHoursChange,
             onSave = viewModel::saveEdit,
@@ -220,6 +222,20 @@ private fun UpcomingRow(
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Medium
             )
+            val subtitle = buildString {
+                dose.medicationCause?.let { append(it) }
+                dose.medicationDescription?.let {
+                    if (isNotEmpty()) append(" · ")
+                    append(it)
+                }
+            }
+            if (subtitle.isNotEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "in ${formatDuration(remainingMs)} · ${formatClock(dose.scheduledAt)}",
@@ -257,6 +273,20 @@ private fun HistoryRow(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
+            val subtitle = buildString {
+                log.medicationCause?.let { append(it) }
+                log.medicationDescription?.let {
+                    if (isNotEmpty()) append(" · ")
+                    append(it)
+                }
+            }
+            if (subtitle.isNotEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Spacer(Modifier.height(2.dp))
             Text(
                 text = formatDateTime(log.takenAt),
@@ -306,6 +336,8 @@ private fun RowOverflowMenu(onEdit: () -> Unit, onDelete: () -> Unit) {
 private fun EditMedicationDialog(
     state: EditMedicationState,
     onNameChange: (String) -> Unit,
+    onCauseChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
     onRecurringChange: (Boolean) -> Unit,
     onHoursChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -320,6 +352,20 @@ private fun EditMedicationDialog(
                     value = state.name,
                     onValueChange = onNameChange,
                     label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.cause,
+                    onValueChange = onCauseChange,
+                    label = { Text("Cause") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.description,
+                    onValueChange = onDescriptionChange,
+                    label = { Text("Description") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
