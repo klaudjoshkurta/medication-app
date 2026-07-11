@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -20,20 +21,22 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shkurta.medication.domain.model.DoseLog
 import com.shkurta.medication.domain.model.Medication
 import com.shkurta.medication.domain.model.UpcomingDose
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -84,7 +88,7 @@ fun HomeScreen(
         }
     }
 
-    var showQuickAdd by remember { mutableStateOf(false) }
+    var showMedsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
 
@@ -96,11 +100,11 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Medications") },
                 actions = {
-                    IconButton(onClick = { showQuickAdd = true }) {
+                    IconButton(onClick = { showMedsSheet = true }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = "Quick Add",
-                            tint = MaterialTheme.colorScheme.primary
+                            contentDescription = "Medications",
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
@@ -122,26 +126,30 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (state.upcoming.isEmpty() && state.history.isEmpty() && state.medications.isEmpty()) {
-            EmptyState(Modifier.padding(padding))
+            EmptyState(
+                onAddClick = onAddClick,
+                modifier = Modifier.padding(padding)
+            )
             return@Scaffold
         }
+        val nextDose = state.upcoming.firstOrNull()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            if (state.upcoming.isNotEmpty()) {
-                item { SectionHeader("Upcoming") }
-                items(state.upcoming, key = { "up-${it.medicationId}" }) { dose ->
+            if (nextDose != null) {
+                item {
                     UpcomingRow(
-                        dose = dose,
+                        dose = nextDose,
                         nowMillis = nowMillis,
-                        onTakenNow = { viewModel.markTaken(dose.medicationId) },
+                        onTakenNow = { viewModel.markTaken(nextDose.medicationId) }
                     )
                 }
                 item { Spacer(Modifier.height(16.dp)) }
             }
+
             if (state.history.isNotEmpty()) {
                 item { SectionHeader("History") }
                 items(state.history, key = { "log-${it.id}" }) { log ->
@@ -150,26 +158,31 @@ fun HomeScreen(
                         onEdit = { viewModel.startEdit(log.medicationId) },
                         onDelete = { confirmDeleteLog = log.id }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         }
     }
 
-    if (showQuickAdd) {
+    if (showMedsSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showQuickAdd = false },
+            onDismissRequest = { showMedsSheet = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.onBackground
         ) {
-            QuickAddSheetContent(
+            MedicationsSheetContent(
                 medications = state.medications,
-                onTake = { medId ->
+                onTakeNow = { medId ->
                     viewModel.markTaken(medId)
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        if (!sheetState.isVisible) showQuickAdd = false
-                    }
+                    dismissSheet(scope, sheetState) { showMedsSheet = false }
+                },
+                onEdit = { medId ->
+                    viewModel.startEdit(medId)
+                    dismissSheet(scope, sheetState) { showMedsSheet = false }
+                },
+                onDelete = { med ->
+                    confirmDeleteMed = med.id to med.name
+                    dismissSheet(scope, sheetState) { showMedsSheet = false }
                 }
             )
         }
@@ -230,10 +243,23 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+private fun dismissSheet(
+    scope: CoroutineScope,
+    sheetState: SheetState,
+    onHidden: () -> Unit
+) {
+    scope.launch { sheetState.hide() }.invokeOnCompletion {
+        if (!sheetState.isVisible) onHidden()
+    }
+}
+
 @Composable
-private fun QuickAddSheetContent(
+private fun MedicationsSheetContent(
     medications: List<Medication>,
-    onTake: (Long) -> Unit
+    onTakeNow: (Long) -> Unit,
+    onEdit: (Long) -> Unit,
+    onDelete: (Medication) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -241,7 +267,7 @@ private fun QuickAddSheetContent(
             .padding(bottom = 32.dp)
     ) {
         Text(
-            text = "Quick Add Dose",
+            text = "Your medications",
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             color = MaterialTheme.colorScheme.onBackground
@@ -249,14 +275,20 @@ private fun QuickAddSheetContent(
         if (medications.isEmpty()) {
             Text(
                 text = "No medications added yet.",
-                modifier = Modifier.padding(20.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             LazyColumn {
-                items(medications) { med ->
+                items(medications, key = { it.id }) { med ->
                     ListItem(
-                        headlineContent = { Text(med.name) },
+                        headlineContent = {
+                            Text(
+                                med.name,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        },
                         supportingContent = {
                             val info = buildString {
                                 med.dosageMg?.let { append("${it}mg") }
@@ -264,13 +296,24 @@ private fun QuickAddSheetContent(
                                     if (isNotEmpty()) append(" · ")
                                     append("Every ${it}h")
                                 }
+                                med.cause?.let {
+                                    if (isNotEmpty()) append(" · ")
+                                    append(it)
+                                }
                             }
-                            if (info.isNotEmpty()) Text(info)
+                            if (info.isNotEmpty()) {
+                                Text(
+                                    info,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         },
                         trailingContent = {
-                            OutlinedButton(onClick = { onTake(med.id) }) {
-                                Text("Take")
-                            }
+                            MedicationRowMenu(
+                                onTakeNow = { onTakeNow(med.id) },
+                                onEdit = { onEdit(med.id) },
+                                onDelete = { onDelete(med) }
+                            )
                         },
                         colors = ListItemDefaults.colors(
                             containerColor = Color.Transparent
@@ -278,6 +321,51 @@ private fun QuickAddSheetContent(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MedicationRowMenu(
+    onTakeNow: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = "More",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = MaterialTheme.colorScheme.background
+        ) {
+            DropdownMenuItem(
+                text = { Text("Take now", color = MaterialTheme.colorScheme.onBackground) },
+                onClick = {
+                    expanded = false
+                    onTakeNow()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Edit", color = MaterialTheme.colorScheme.onBackground) },
+                onClick = {
+                    expanded = false
+                    onEdit()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Delete", color = MaterialTheme.colorScheme.onBackground) },
+                onClick = {
+                    expanded = false
+                    onDelete()
+                }
+            )
         }
     }
 }
@@ -299,35 +387,96 @@ private fun UpcomingRow(
     nowMillis: Long,
     onTakenNow: () -> Unit,
 ) {
-    val remainingMs = (dose.scheduledAt - nowMillis).coerceAtLeast(0L)
+    val diffMs = dose.scheduledAt - nowMillis
+    val isOverdue = diffMs < 0
+    val absMs = if (isOverdue) -diffMs else diffMs
 
-    Column(
+    val windowMs = 60L * 60L * 1000L
+    val progress = if (isOverdue) {
+        1f
+    } else {
+        (1f - (diffMs.toFloat() / windowMs.toFloat())).coerceIn(0f, 1f)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
     ) {
-        Text(
-            text = "${dose.medicationName} in ${formatDuration(remainingMs)}",
-            style = MaterialTheme.typography.titleMedium,
-            color = Color(0xFF2563eb),
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = formatClock(dose.scheduledAt),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(16.dp))
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = onTakenNow,
-            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                contentColor = Color.White,
-                containerColor = Color(0xFF2563eb)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = dose.medicationName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    val subtitle = buildString {
+                        dose.medicationCause?.let { append(it) }
+                        dose.medicationDescription?.let {
+                            if (isNotEmpty()) append(" · ")
+                            append(it)
+                        }
+                    }
+                    if (subtitle.isNotEmpty()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Text(
+                    text = formatClock(dose.scheduledAt),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = if (isOverdue) {
+                    "Overdue by ${formatCompactDuration(absMs)}"
+                } else {
+                    "In ${formatCompactDuration(absMs)}"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
             )
-        ) {
-            Text("Taken", fontWeight = FontWeight.Medium)
+
+            Spacer(Modifier.height(8.dp))
+
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outlineVariant,
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                gapSize = 0.dp,
+                drawStopIndicator = {}
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onTakenNow,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text("Mark as taken", fontWeight = FontWeight.Medium)
+            }
         }
     }
 }
@@ -491,30 +640,56 @@ private fun EditMedicationDialog(
 }
 
 @Composable
-private fun EmptyState(modifier: Modifier = Modifier) {
+private fun EmptyState(
+    onAddClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "No medications yet.\nTap + to add one.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
+            Text(
+                text = "No medications yet",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Add your first medication to start tracking doses.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onAddClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text("Add medication")
+            }
+        }
     }
 }
 
-private fun formatDuration(ms: Long): String {
+private fun formatCompactDuration(ms: Long): String {
     val totalSeconds = ms / 1000
     val h = totalSeconds / 3600
     val m = (totalSeconds % 3600) / 60
 
     return when {
-        h >= 1 -> "$h ${if (h == 1L) "hour" else "hours"}"
-        m >= 1 -> "$m ${if (m == 1L) "minute" else "minutes"}"
+        h >= 1 && m > 0 -> "${h}h ${m}m"
+        h >= 1 -> "${h}h"
+        m >= 1 -> "${m}m"
         else -> "less than a minute"
     }
 }
@@ -524,3 +699,6 @@ private fun formatClock(millis: Long): String =
 
 private fun formatDateTime(millis: Long): String =
     SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(millis))
+
+private fun formatTodayHeader(millis: Long): String =
+    "Today · ${SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(millis))}"
