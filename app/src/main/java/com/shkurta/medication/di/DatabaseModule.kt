@@ -19,7 +19,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MedicationDatabase =
-        Room.databaseBuilder(context, MedicationDatabase::class.java, "medication.db").build()
+        Room.databaseBuilder(context, MedicationDatabase::class.java, "medication.db")
+            .addMigrations(MedicationDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideMedicationDao(db: MedicationDatabase): MedicationDao = db.medicationDao()
