@@ -4,15 +4,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,9 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -37,23 +31,17 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -69,15 +57,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -99,10 +82,10 @@ import kotlin.time.Duration.Companion.milliseconds
 fun HomeScreen(
     onAddClick: () -> Unit,
     onHistoryClick: (Long) -> Unit,
+    onEditClick: (Long) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val editState by viewModel.editState.collectAsStateWithLifecycle()
 
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -210,7 +193,7 @@ fun HomeScreen(
                         HistoryRow(
                             log = log,
                             onClick = { onHistoryClick(log.medicationId) },
-                            onEdit = { viewModel.startEdit(log.medicationId) },
+                            onEdit = { onEditClick(log.medicationId) },
                             onDelete = { confirmDeleteLog = log.id }
                         )
                     }
@@ -233,8 +216,8 @@ fun HomeScreen(
                     dismissSheet(scope, sheetState) { showMedsSheet = false }
                 },
                 onEdit = { medId ->
-                    viewModel.startEdit(medId)
                     dismissSheet(scope, sheetState) { showMedsSheet = false }
+                    onEditClick(medId)
                 },
                 onDelete = { med ->
                     confirmDeleteMed = med.id to med.name
@@ -242,20 +225,6 @@ fun HomeScreen(
                 }
             )
         }
-    }
-
-    editState?.let { es ->
-        EditMedicationDialog(
-            state = es,
-            onNameChange = viewModel::onEditNameChange,
-            onCauseChange = viewModel::onEditCauseChange,
-            onDescriptionChange = viewModel::onEditDescriptionChange,
-            onDosageMgChange = viewModel::onEditDosageMgChange,
-            onRecurringChange = viewModel::onEditRecurringChange,
-            onHoursChange = viewModel::onEditHoursChange,
-            onSave = viewModel::saveEdit,
-            onDismiss = viewModel::cancelEdit
-        )
     }
 
     confirmDeleteMed?.let { (id, name) ->
@@ -484,33 +453,6 @@ private fun MedicationOverflowMenu(onEdit: () -> Unit, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun SectionHeader(text: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 8.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = 4.dp, height = 18.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.onBackground,
-                    shape = RoundedCornerShape(2.dp)
-                )
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.SemiBold
-        )
-    }
-}
-
-@Composable
 private fun UpcomingRow(
     dose: UpcomingDose,
     nowMillis: Long,
@@ -616,7 +558,7 @@ private fun DayGroupHeader(
     count: Int
 ) {
     Text(
-        modifier = Modifier.padding(horizontal = 20.dp),
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
         text = "${label.uppercase(getDefault())} (${count})",
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onBackground,
@@ -675,29 +617,6 @@ private fun HistoryRow(
         RowOverflowMenu(
             onEdit = onEdit,
             onDelete = onDelete
-        )
-    }
-}
-
-@Composable
-private fun PillIcon() {
-    Row(
-        modifier = Modifier
-            .size(width = 28.dp, height = 12.dp)
-            .rotate(-35f)
-            .clip(RoundedCornerShape(999.dp))
-    ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.onBackground)
-        )
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
         )
     }
 }
@@ -765,327 +684,6 @@ private fun RowOverflowMenu(
             )
         }
     }
-}
-
-@Composable
-private fun EditMedicationDialog(
-    state: EditMedicationState,
-    onNameChange: (String) -> Unit,
-    onCauseChange: (String) -> Unit,
-    onDescriptionChange: (String) -> Unit,
-    onDosageMgChange: (String) -> Unit,
-    onRecurringChange: (Boolean) -> Unit,
-    onHoursChange: (String) -> Unit,
-    onSave: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Edit medication",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                FormSection(label = "Details") {
-                    MonoTextField(
-                        value = state.name,
-                        onValueChange = onNameChange,
-                        label = "Name",
-                        isError = state.name.isBlank()
-                    )
-                    MonoTextField(
-                        value = state.cause,
-                        onValueChange = onCauseChange,
-                        label = "Cause",
-                        placeholder = "e.g. Headache"
-                    )
-                    MonoTextField(
-                        value = state.description,
-                        onValueChange = onDescriptionChange,
-                        label = "Description",
-                        placeholder = "e.g. Pill"
-                    )
-                }
-
-                FormSection(label = "Dosage") {
-                    MonoTextField(
-                        value = state.dosageMgText,
-                        onValueChange = onDosageMgChange,
-                        label = "Dosage",
-                        suffix = "mg",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-                }
-
-                FormSection(label = "Schedule") {
-                    RecurringToggleCard(
-                        recurring = state.recurring,
-                        hoursValue = state.hoursValue,
-                        onToggle = onRecurringChange
-                    )
-                    if (state.recurring) {
-                        IntervalHoursField(
-                            hoursText = state.hoursText,
-                            hoursValue = state.hoursValue,
-                            onChange = onHoursChange,
-                            isError = state.hoursText.isNotBlank() && state.hoursValue == null
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onSave,
-                enabled = state.canSave,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text("Save changes")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.onBackground)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        titleContentColor = MaterialTheme.colorScheme.onBackground,
-        textContentColor = MaterialTheme.colorScheme.onBackground
-    )
-}
-
-@Composable
-private fun FormSection(
-    label: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.width(10.dp))
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        content()
-    }
-}
-
-@Composable
-private fun IntervalHoursField(
-    hoursText: String,
-    hoursValue: Int?,
-    onChange: (String) -> Unit,
-    isError: Boolean = false
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(4, 6, 8, 12, 24).forEach { p ->
-                IntervalChip(
-                    hours = p,
-                    selected = hoursValue == p,
-                    onClick = { onChange(p.toString()) }
-                )
-            }
-        }
-        MonoTextField(
-            value = hoursText,
-            onValueChange = onChange,
-            label = "Interval",
-            suffix = "hours",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            isError = isError
-        )
-    }
-}
-
-@Composable
-private fun IntervalChip(
-    hours: Int,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val bg = if (selected) MaterialTheme.colorScheme.onBackground else Color.Transparent
-    val fg = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
-    val subFg = if (selected) {
-        MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = bg,
-        border = border,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-        ) {
-            Text(
-                text = "${hours}h",
-                style = MaterialTheme.typography.titleMedium,
-                color = fg,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = frequencyLabel(hours),
-                style = MaterialTheme.typography.labelSmall,
-                color = subFg
-            )
-        }
-    }
-}
-
-private fun frequencyLabel(hours: Int): String = when {
-    hours <= 0 -> ""
-    24 % hours == 0 -> {
-        val perDay = 24 / hours
-        if (perDay == 1) "daily" else "$perDay/day"
-    }
-    else -> "every ${hours}h"
-}
-
-@Composable
-private fun RecurringToggleCard(
-    recurring: Boolean,
-    hoursValue: Int?,
-    onToggle: (Boolean) -> Unit
-) {
-    val border = if (recurring) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground)
-    } else null
-
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = border,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onToggle(!recurring) }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Recurring dose",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = recurringSubtitle(recurring, hoursValue),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            MonoSwitch(
-                checked = recurring,
-                onCheckedChange = onToggle
-            )
-        }
-    }
-}
-
-@Composable
-private fun MonoTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    modifier: Modifier = Modifier,
-    placeholder: String? = null,
-    suffix: String? = null,
-    singleLine: Boolean = true,
-    isError: Boolean = false,
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = {
-            Text(
-                text = label,
-                fontWeight = FontWeight.Medium
-            )
-        },
-        placeholder = placeholder?.let { { Text(it) } },
-        suffix = suffix?.let { { Text(it) } },
-        singleLine = singleLine,
-        isError = isError,
-        keyboardOptions = keyboardOptions,
-        shape = RoundedCornerShape(14.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.onBackground,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-            focusedLabelColor = MaterialTheme.colorScheme.onBackground,
-            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            cursorColor = MaterialTheme.colorScheme.onBackground,
-            focusedTextColor = MaterialTheme.colorScheme.onBackground,
-            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            focusedSuffixColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unfocusedSuffixColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
-        modifier = modifier.fillMaxWidth()
-    )
-}
-
-@Composable
-private fun MonoSwitch(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        thumbContent = if (checked) {
-            {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(SwitchDefaults.IconSize)
-                )
-            }
-        } else null,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = MaterialTheme.colorScheme.background,
-            checkedTrackColor = MaterialTheme.colorScheme.onBackground,
-            checkedBorderColor = MaterialTheme.colorScheme.onBackground,
-            checkedIconColor = MaterialTheme.colorScheme.onBackground,
-            uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            uncheckedTrackColor = Color.Transparent,
-            uncheckedBorderColor = MaterialTheme.colorScheme.outline
-        )
-    )
-}
-
-private fun recurringSubtitle(recurring: Boolean, hoursValue: Int?): String = when {
-    !recurring -> "One-time dose"
-    hoursValue == null || hoursValue <= 0 -> "Choose interval below"
-    hoursValue == 1 -> "Every hour"
-    else -> "Every $hoursValue hours"
 }
 
 @Composable
