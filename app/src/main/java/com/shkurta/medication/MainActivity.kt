@@ -1,9 +1,14 @@
 package com.shkurta.medication
 
 import android.Manifest
+import android.app.NotificationManager
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +32,7 @@ class MainActivity : ComponentActivity() {
 
         NotificationHelper.ensureChannel(this)
         ensureNotificationPermission()
+        ensureFullScreenIntentPermission()
 
         setContent {
             MedicationTheme {
@@ -44,5 +50,15 @@ class MainActivity : ComponentActivity() {
         if (!granted) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    private fun ensureFullScreenIntentPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.canUseFullScreenIntent()) return
+        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+            data = Uri.parse("package:$packageName")
+        }
+        runCatching { startActivity(intent) }
     }
 }
