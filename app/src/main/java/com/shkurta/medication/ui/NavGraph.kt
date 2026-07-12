@@ -14,11 +14,13 @@ import androidx.navigation.navArgument
 import com.shkurta.medication.ui.add.AddMedicationScreen
 import com.shkurta.medication.ui.details.MedicationDetailsScreen
 import com.shkurta.medication.ui.edit.EditMedicationScreen
+import com.shkurta.medication.ui.history.HistoryScreen
 import com.shkurta.medication.ui.home.HomeScreen
 
 object Routes {
     const val HOME = "home"
     const val ADD = "add"
+    const val HISTORY = "history"
     const val MEDICATION_DETAILS = "medication_details"
     const val MEDICATION_DETAILS_ROUTE = "$MEDICATION_DETAILS/{medicationId}"
     const val EDIT_MEDICATION = "edit_medication"
@@ -70,11 +72,20 @@ fun NavGraph() {
                 },
                 onEditClick = { medicationId ->
                     navController.navigate(Routes.editMedication(medicationId))
-                }
+                },
+                onViewHistoryClick = { navController.navigate(Routes.HISTORY) }
             )
         }
         composable(Routes.ADD) {
             AddMedicationScreen(onDone = { navController.popBackStack() })
+        }
+        composable(Routes.HISTORY) {
+            HistoryScreen(
+                onBack = { navController.popBackStack() },
+                onEntryClick = { medicationId ->
+                    navController.navigate(Routes.medicationDetails(medicationId))
+                }
+            )
         }
         composable(
             route = Routes.MEDICATION_DETAILS_ROUTE,

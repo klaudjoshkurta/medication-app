@@ -83,6 +83,7 @@ fun HomeScreen(
     onAddClick: () -> Unit,
     onHistoryClick: (Long) -> Unit,
     onEditClick: (Long) -> Unit,
+    onViewHistoryClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -185,7 +186,8 @@ fun HomeScreen(
             }
 
             if (state.history.isNotEmpty()) {
-                groupHistory(state.history).forEach { group ->
+                val recentHistory = state.history.take(6)
+                groupHistory(recentHistory).forEach { group ->
                     item(key = "grp-${group.label}") {
                         DayGroupHeader(label = group.label, count = group.logs.size)
                     }
@@ -197,6 +199,9 @@ fun HomeScreen(
                             onDelete = { confirmDeleteLog = log.id }
                         )
                     }
+                }
+                item(key = "view-history-button") {
+                    ViewHistoryButton(onClick = onViewHistoryClick)
                 }
             }
         }
@@ -549,6 +554,25 @@ private fun UpcomingRow(
                 Text("Mark as taken", fontWeight = FontWeight.Medium)
             }
         }
+    }
+}
+
+@Composable
+private fun ViewHistoryButton(onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.onBackground
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "View history",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
